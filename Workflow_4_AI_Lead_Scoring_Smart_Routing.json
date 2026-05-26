@@ -1,0 +1,385 @@
+{
+  "name": "Workflow 4 - AI Lead Scoring + Smart Routing",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-Path",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1696,
+        -432
+      ],
+      "id": "74cbcd50-5d4b-4bf9-9119-a10f05cbe0f0",
+      "name": "Webhook",
+      "webhookId": "159458db-6153-4536-8175-8065b1bdc15a",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "6h4LEChZ4ftsBy6Z",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8840725f-ad29-4129-99c7-c857f592d0e4",
+              "name": "body.name",
+              "value": "={{ $json.body.name }}",
+              "type": "string"
+            },
+            {
+              "id": "bba71f73-cc30-497d-95e8-1524c714b16e",
+              "name": "body.email",
+              "value": "={{ $json.body.email }}",
+              "type": "string"
+            },
+            {
+              "id": "dce058f0-676a-489a-a406-83d4eb83e086",
+              "name": "body.phone",
+              "value": "={{ $json.body.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "676b037b-be3c-483a-b5f7-c4fd2a5a445f",
+              "name": "body.message",
+              "value": "={{ $json.body.message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1552,
+        -656
+      ],
+      "id": "de87f6ce-d759-400d-a0fd-23c10907997e",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=AIzaSyBIXu4jzRt1_asIIFWwsZQh73XoSWKGJPk",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"### ROLE\\nYou are a Senior Real Estate Sales Analyst specializing in lead conversion. Your task is to analyze incoming lead data and determine their 'Temperature' based on urgency, financial capability, and intent.\\n\\n### SCORING RUBRIC (Total 100 Points)\\nCalculate a score based on these criteria:\\n1. TIMELINE (40 pts): Mention of 'ASAP', 'now', 'next month', or specific dates = 40pts. General interest = 10pts.\\n2. FINANCES (30 pts): Mention of 'Pre-approved', 'Cash', or a specific budget over $400k = 30pts.\\n3. SPECIFICITY (20 pts): Asks for a viewing, mentions a specific address, or specific property features = 20pts.\\n4. CONTACT QUALITY (10 pts): Full name and valid-looking phone/email provided = 10pts.\\n\\n### CLASSIFICATION THRESHOLDS\\n- HOT (80-100 pts): Immediate follow-up required. Clear intent to buy/sell soon.\\n- WARM (40-79 pts): High potential but needs nurturing or more info.\\n- COLD (0-39 pts): Low intent, vague messages, or missing contact info.\\n\\n### INPUT DATA\\nName: {{ $json.body.name }}\\nEmail: {{ $json.body.email }}\\nMessage: {{ $json.body.message }}\\nProperty Interest: {{ $json.body.property_type || 'Not specified' }}\\n\\n### OUTPUT FORMAT\\nYou must return ONLY a JSON object. Do not include conversational text.\\n{\\n  'rating': 'HOT' | 'WARM' | 'COLD',\\n  'score': [Number],\\n  'justification': 'One sentence explaining the score',\\n  'recommended_action': 'One sentence on what the agent should do first'\\n}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1264,
+        -624
+      ],
+      "id": "28bea5de-ae55-49a1-a59e-9891fec9f182",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.candidates[0].content.parts[0].text }}",
+                    "rightValue": "HOT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "415ea90c-5fc7-47bd-8042-7f87b2c8360b"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Hot"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "5730385a-2d36-43c7-8e75-fd5348734492",
+                    "leftValue": "={{ $json.candidates[0].content.parts[0].text }}",
+                    "rightValue": "WARM",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Warm"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "92316b31-c789-49bf-8ff7-1370c5d77352",
+                    "leftValue": "={{ $json.candidates[0].content.parts[0].text }}",
+                    "rightValue": "COLD",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Cold"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -928,
+        -304
+      ],
+      "id": "4ebf1b0b-0f3e-4080-8db3-f40ba274f647",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "sendTo": "onerandom758@gmail.com",
+        "subject": "=HOT LEAD — Call NOW: {{ $('Edit Fields').item.json.body.name }}",
+        "emailType": "text",
+        "message": "=URGENT — This lead is ready to buy.  Name: {{ $('Edit Fields').item.json.body.name }}    Phone:{{ $('Edit Fields').item.json.body.phone }}    Email : {{ $('Edit Fields').item.json.body.email }}  Message:{{ $('Edit Fields').item.json.body.message }}  AI Score: HOT — call within 5 minutes.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -944,
+        -800
+      ],
+      "id": "1fabd5cc-7275-4ffd-b215-20dfa0c6c77e",
+      "name": "Send a message",
+      "webhookId": "0ea8a179-562e-466d-a516-625311a0dd5e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hywi8gBs9Pte647f",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "email": "={{ $('Edit Fields').item.json.body.email }}",
+        "additionalFields": {
+          "firstName": "={{ $('Edit Fields').item.json.body.name }}",
+          "mobilePhoneNumber": "={{ $('Edit Fields').item.json.body.phone }}"
+        },
+        "options": {
+          "resolveData": false
+        }
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        -560,
+        -640
+      ],
+      "id": "859b0cdf-dbc0-4cfb-98cd-c26e9659808c",
+      "name": "Create or update a contact",
+      "credentials": {
+        "hubspotOAuth2Api": {
+          "id": "WNEsvXQsgQ65e1ua",
+          "name": "HubSpot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Role: You are a professional Real Estate Assistant.\n\nLead Message: {{ $('Edit Fields').item.json.body.message }}\n\nInstructions:\n\nAnalyze: Identify the Property Type from the message (e.g., Single Family Home, Condo, etc.).\n\nDraft Reply: Write a 3-4 line professional reply to the buyer.\n\nAcknowledge their specific property interest.\n\nMention their specific situation (like the $750k budget or move-in date).\n\nEnd with a clear question to book the tour.\n\nFormat your output exactly like this:\nProperty Type: [Type]\nSuggested Reply: [Your 3-4 line message here]",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -576,
+        -496
+      ],
+      "id": "3916ffe8-8285-47e8-9e3d-da324039deda",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Edit Fields').item.json.body.email }}",
+        "subject": "Quick follow-up regarding your property inquiry",
+        "emailType": "text",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        -496
+      ],
+      "id": "f3956559-7552-4249-bebf-63238fd34127",
+      "name": "Send a message1",
+      "webhookId": "35b032dc-beba-4039-b163-420e068e8c5b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hywi8gBs9Pte647f",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        -288
+      ],
+      "id": "62325b9f-f97a-408c-a2b6-6cfa3476a35b",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "m6gwKkOZpZ3oVMOl",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create or update a contact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Create or update a contact": {
+      "main": [
+        []
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 0,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
